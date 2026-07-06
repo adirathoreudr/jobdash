@@ -101,3 +101,41 @@ export async function createApplicationPage(
     return { synced: false, reason: (e as Error).message };
   }
 }
+
+/** Push a status change to the synced Notion page (best-effort). */
+export async function updateApplicationPageStatus(
+  pageId: string,
+  status: string
+): Promise<NotionSyncResult> {
+  if (!isNotionConfigured()) {
+    return { synced: false, reason: "not-configured" };
+  }
+  try {
+    const notion = getClient();
+    const db = await notion.databases.retrieve({
+      database_id: process.env.NOTION_DATABASE_ID!,
+    });
+    const props = (db as { properties: Record<string, { type: string }> })
+      .properties;
+    const find = (type: string) =>
+      Object.entries(props).find(
+        ([name, v]) => v.type === type && /status|stage/i.test(name)
+      )?.[0] ??
+      Object.entries(props).find(([, v]) => v.type === type)?.[0];
+
+    const statusStatus = find("status");
+    const statusSelect = find("select");
+    const properties: Record<string, unknown> = {};
+    if (statusStatus) properties[statusStatus] = { status: { name: status } };
+    else if (statusSelect) properties[statusSelect] = { select: { name: status } };
+    else return { synced: false, reason: "no status column" };
+
+    await notion.pages.update({
+      page_id: pageId,
+      properties: properties as never,
+    });
+    return { synced: true, pageId };
+  } catch (e) {
+    return { synced: false, reason: (e as Error).message };
+  }
+}

@@ -37,13 +37,15 @@ export function GenerationDashboard({
   onStartAnother,
 }: Props) {
   const [artifacts, setArtifacts] = useState<Artifacts | null>(null);
+  const [cached, setCached] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [caption, setCaption] = useState(0);
   const started = useRef(false);
 
-  async function generate() {
+  async function generate(force = false) {
     setError(null);
     setArtifacts(null);
+    setCached(false);
     setCaption(0);
     const ticker = setInterval(
       () => setCaption((c) => (c + 1) % LOADING_CAPTIONS.length),
@@ -53,11 +55,12 @@ export function GenerationDashboard({
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resume, job }),
+        body: JSON.stringify({ resume, job, force }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Generation failed.");
       setArtifacts(data.artifacts as Artifacts);
+      setCached(Boolean(data.cached));
       onArtifacts?.(data.artifacts as Artifacts);
     } catch (e) {
       setError((e as Error).message);
@@ -78,7 +81,7 @@ export function GenerationDashboard({
       <Card className="fade-up p-6">
         <p className="text-sm text-[var(--color-accent)]">{error}</p>
         <div className="mt-4">
-          <Button variant="outline" size="sm" onClick={generate}>
+          <Button variant="outline" size="sm" onClick={() => generate()}>
             Try again
           </Button>
         </div>
@@ -93,6 +96,14 @@ export function GenerationDashboard({
   const a = artifacts;
   return (
     <div className="space-y-5">
+      {cached && (
+        <div className="fade-up flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--color-line)] bg-[var(--color-line-soft)] px-4 py-2.5 text-sm text-[var(--color-ink-soft)]">
+          <span>Restored from your last run for this job — no tokens spent.</span>
+          <Button variant="ghost" size="sm" onClick={() => generate(true)}>
+            Regenerate
+          </Button>
+        </div>
+      )}
       <FitPanel fit={a.fit} />
 
       <ArtifactCard

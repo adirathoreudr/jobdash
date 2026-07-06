@@ -56,6 +56,37 @@ See `.env.example` for detailed setup notes (including Notion).
 4. **Track** — "Did you apply?" → logs it locally and (optionally) to Notion.
    Review everything at `/history`.
 
+## Smart extras built in
+
+- **Fit score + gap analysis** — an honest 0–100 match with the skills you
+  already cover and the JD keywords you're missing.
+- **Generation cache** — revisiting a job URL you already generated for
+  restores the documents instantly instead of re-billing the LLM
+  (with a one-click Regenerate).
+- **Status pipeline** — flip Applied → Interview → Offer / Rejected inline in
+  `/history`; the change is mirrored to Notion when the row is synced.
+
+## Deploying to Vercel
+
+1. Push this repo to GitHub and import it in Vercel (framework auto-detects).
+2. Add the environment variables above (Settings → Environment Variables).
+3. Provision Postgres (Vercel → Storage → Postgres, or neon.tech) and set
+   `DATABASE_URL` to the **pooled** string.
+4. Run `pnpm db:push` once locally against that URL to create the tables.
+5. Deploy. `pnpm build` runs `prisma generate` automatically.
+
+Scraping note: LinkedIn/Wellfound/Indeed block *all* server-side readers —
+that's not a bug; the UI falls back to paste-the-JD for those. Direct company
+boards (Greenhouse, Lever, Ashby, `/careers` pages) extract automatically.
+
+## Ideas for later
+
+- Follow-up nudges ("no reply in 7 days → send the follow-up email")
+- Baseline vs. tailored resume diff view
+- Export the whole dashboard as one PDF packet
+- Weekly pipeline digest (email or Notion comment)
+- Multi-resume anchors (e.g. an IC resume and a management resume)
+
 ## Project layout
 
 ```

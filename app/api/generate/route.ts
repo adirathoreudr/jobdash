@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chatJSON, isNvidiaConfigured } from "@/lib/nvidia";
+import { findCachedByUrl } from "@/lib/data";
+import { hasDatabase } from "@/lib/prisma";
 import {
   TAILOR_SYSTEM,
   OUTREACH_SYSTEM,
@@ -34,16 +36,34 @@ export async function POST(req: NextRequest) {
 
   let resume: ResumeData;
   let job: JobData;
+  let force = false;
   try {
     const body = await req.json();
     resume = body.resume;
     job = body.job;
+    force = Boolean(body.force);
     if (!resume || !job) throw new Error("missing");
   } catch {
     return NextResponse.json(
       { error: "A resume and a job are both required." },
       { status: 400 }
     );
+  }
+
+  // Per-URL cache: if this job was already generated (and logged), reuse it
+  // instead of re-billing the LLM. Pass { force: true } to regenerate.
+  if (!force && job.sourceUrl && hasDatabase) {
+    try {
+      const cached = await findCachedByUrl(job.sourceUrl);
+      if (cached?.generated) {
+        return NextResponse.json({
+          artifacts: cached.generated as unknown as Artifacts,
+          cached: true,
+        });
+      }
+    } catch {
+      /* cache is best-effort */
+    }
   }
 
   const user = generationUser(resume, job);

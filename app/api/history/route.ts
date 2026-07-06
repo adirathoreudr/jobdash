@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listApplications, updateApplicationStatus } from "@/lib/data";
+import { updateApplicationPageStatus } from "@/lib/notion";
 import { hasDatabase } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -37,7 +38,11 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Invalid update." }, { status: 400 });
   }
   try {
-    await updateApplicationStatus(body.id, body.status);
+    const row = await updateApplicationStatus(body.id, body.status);
+    // Mirror the change to Notion when this application was synced.
+    if (row.notionPageId) {
+      await updateApplicationPageStatus(row.notionPageId, body.status);
+    }
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Update failed." }, { status: 500 });
