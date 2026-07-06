@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Profile } from "@/lib/types";
+import type { JobData, Profile } from "@/lib/types";
 import { ResumeUpload } from "@/components/ResumeUpload";
+import { JobInput } from "@/components/JobInput";
 import { Badge, Button, Card } from "@/components/ui";
 
 const LS_KEY = "jobdash:profile";
@@ -12,6 +13,7 @@ type Step = "loading" | "onboarding" | "job";
 export function Studio() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [step, setStep] = useState<Step>("loading");
+  const [job, setJob] = useState<JobData | null>(null);
 
   // Load the anchor resume: prefer the DB, fall back to a local cache.
   useEffect(() => {
@@ -52,6 +54,7 @@ export function Studio() {
 
   function resetResume() {
     setProfile(null);
+    setJob(null);
     clearCache();
     setStep("onboarding");
   }
@@ -73,30 +76,100 @@ export function Studio() {
     );
   }
 
-  // Has a profile → job input stage (wired up in the next phase).
+  // Has a profile, no job yet → job input stage.
+  if (!job) {
+    return (
+      <div className="mx-auto max-w-[var(--page-max)] px-5 pt-16 pb-32">
+        <ProfileSummary profile={profile} onReset={resetResume} compact />
+        <div className="mt-10">
+          <JobInput onJob={setJob} />
+        </div>
+      </div>
+    );
+  }
+
+  // Has a profile + a job → generation dashboard (wired up in the next phase).
   return (
     <div className="mx-auto max-w-[var(--page-max)] px-5 pt-16 pb-32">
-      <ProfileSummary profile={profile} onReset={resetResume} />
+      <JobSummary job={job} onChange={() => setJob(null)} />
       <div className="mt-10 fade-up">
-        <p className="eyebrow mb-4">Step 02 — the job</p>
+        <p className="eyebrow mb-4">Step 03 — generation</p>
         <Card className="p-6 text-sm text-[var(--color-muted)]">
-          Job input & AI generation are wired up in the next phases.
+          The AI generation dashboard is wired up in the next phase.
         </Card>
       </div>
     </div>
   );
 }
 
+function JobSummary({
+  job,
+  onChange,
+}: {
+  job: JobData;
+  onChange: () => void;
+}) {
+  return (
+    <Card className="fade-up p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <Badge tone="accent">Job read</Badge>
+          <h3 className="mt-3 truncate text-lg font-semibold tracking-tight">
+            {job.title}
+          </h3>
+          <p className="text-sm text-[var(--color-muted)]">
+            {job.company}
+            {job.location ? ` · ${job.location}` : ""}
+          </p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={onChange}>
+          Change
+        </Button>
+      </div>
+      {job.skills?.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          {job.skills.slice(0, 10).map((s) => (
+            <Badge key={s}>{s}</Badge>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function ProfileSummary({
   profile,
   onReset,
+  compact = false,
 }: {
   profile: Profile;
   onReset: () => void;
+  compact?: boolean;
 }) {
   const r = profile.structured;
   const skills = r?.skills?.slice(0, 8) ?? [];
   const roles = r?.experience?.length ?? 0;
+
+  if (compact) {
+    return (
+      <div className="fade-up flex items-center justify-between gap-4 rounded-[var(--radius-md)] border border-[var(--color-line)] bg-[var(--color-surface)] px-4 py-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Badge tone="ok">Resume</Badge>
+          <span className="truncate text-sm font-medium">
+            {r?.name || profile.name || "Your resume"}
+          </span>
+          <span className="hidden text-xs text-[var(--color-faint)] sm:inline">
+            · {r?.skills?.length ?? 0} skills · {roles} role
+            {roles === 1 ? "" : "s"}
+          </span>
+        </div>
+        <Button variant="ghost" size="sm" onClick={onReset}>
+          Replace
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <Card className="fade-up p-6">
       <div className="flex items-start justify-between gap-4">
