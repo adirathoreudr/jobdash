@@ -95,7 +95,11 @@ export function Studio() {
       <JobSummary job={job} onChange={() => setJob(null)} />
       <div className="mt-8">
         {profile.structured ? (
-          <GenerationDashboard resume={profile.structured} job={job} />
+          <GenerationDashboard
+            resume={profile.structured}
+            job={job}
+            onStartAnother={() => setJob(null)}
+          />
         ) : (
           <Card className="p-6 text-sm text-[var(--color-muted)]">
             Your resume couldn&apos;t be structured. Try replacing it.

@@ -6,6 +6,7 @@ import type { Artifacts, JobData, ResumeData } from "@/lib/types";
 import { ArtifactCard } from "@/components/ArtifactCard";
 import { ResumePreview } from "@/components/ResumePreview";
 import { CopyButton } from "@/components/CopyButton";
+import { ApplyBar } from "@/components/ApplyBar";
 import { Badge, Button, Card, Spinner } from "@/components/ui";
 
 // @react-pdf/renderer is browser-only — load the download button client-side.
@@ -26,9 +27,15 @@ type Props = {
   resume: ResumeData;
   job: JobData;
   onArtifacts?: (a: Artifacts) => void;
+  onStartAnother?: () => void;
 };
 
-export function GenerationDashboard({ resume, job, onArtifacts }: Props) {
+export function GenerationDashboard({
+  resume,
+  job,
+  onArtifacts,
+  onStartAnother,
+}: Props) {
   const [artifacts, setArtifacts] = useState<Artifacts | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [caption, setCaption] = useState(0);
@@ -185,6 +192,8 @@ export function GenerationDashboard({ resume, job, onArtifacts }: Props) {
           {a.uniquePitch}
         </p>
       </ArtifactCard>
+
+      <ApplyBar job={job} artifacts={a} onStartAnother={onStartAnother} />
     </div>
   );
 }
