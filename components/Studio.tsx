@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { JobData, Profile } from "@/lib/types";
 import { ResumeUpload } from "@/components/ResumeUpload";
 import { JobInput } from "@/components/JobInput";
+import { GenerationDashboard } from "@/components/GenerationDashboard";
 import { Badge, Button, Card } from "@/components/ui";
 
 const LS_KEY = "jobdash:profile";
@@ -88,15 +89,18 @@ export function Studio() {
     );
   }
 
-  // Has a profile + a job → generation dashboard (wired up in the next phase).
+  // Has a profile + a job → generation dashboard.
   return (
     <div className="mx-auto max-w-[var(--page-max)] px-5 pt-16 pb-32">
       <JobSummary job={job} onChange={() => setJob(null)} />
-      <div className="mt-10 fade-up">
-        <p className="eyebrow mb-4">Step 03 — generation</p>
-        <Card className="p-6 text-sm text-[var(--color-muted)]">
-          The AI generation dashboard is wired up in the next phase.
-        </Card>
+      <div className="mt-8">
+        {profile.structured ? (
+          <GenerationDashboard resume={profile.structured} job={job} />
+        ) : (
+          <Card className="p-6 text-sm text-[var(--color-muted)]">
+            Your resume couldn&apos;t be structured. Try replacing it.
+          </Card>
+        )}
       </div>
     </div>
   );
