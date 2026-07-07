@@ -1,0 +1,39 @@
+// JobDash data model — single-user personal tracker.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// The user's baseline resume — the anchor context for every generation.
+/// Single-user app: we always read/write the most recent row.
+model Profile {
+  id         String   @id @default(cuid())
+  name       String?
+  email      String?
+  rawText    String   @db.Text
+  structured Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+/// A logged job application (State 3). `generated` caches the full artifact
+/// bundle so revisiting a job never re-bills the LLM.
+model Application {
+  id          String   @id @default(cuid())
+  company     String
+  role        String
+  url         String?
+  jdSnapshot  String   @db.Text
+  status      String   @default("Applied") // Applied | Interview | Offer | Rejected
+  fitScore    Int?
+  generated   Json?
+  notionPageId String?
+  appliedAt   DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([appliedAt])
+}
