@@ -63,6 +63,123 @@ type ChatJSONOptions = {
   maxTokens?: number;
 };
 
+type ChatMessage = { role: "system" | "user"; content: string };
+type CompletionLike = {
+  choices?: { message?: { content?: string | null } }[];
+  [key: string]: unknown;
+};
+
+/**
+ * Run a chat completion against NIM and return the message text.
+ * Hardened for NVIDIA-specific behaviour:
+ *  - 202 "still processing" responses (long generations) are polled via the
+ *    NVCF status endpoint until the completion is ready
+ *  - responses without a `choices` array raise a readable error instead of a
+ *    TypeError, with the body logged server-side for diagnosis
+ *  - API errors (bad key, unknown model, rate limits) become human messages
+ */
+async function completeText(
+  messages: ChatMessage[],
+  opts: ChatJSONOptions
+): Promise<string> {
+  const openai = getClient();
+
+  let completion: CompletionLike;
+  try {
+    const { data, response } = await openai.chat.completions
+      .create({
+        model: MODEL,
+        temperature: opts.temperature ?? 0.4,
+        max_tokens: opts.maxTokens ?? 4000,
+        messages,
+      })
+      .withResponse();
+    completion = data as unknown as CompletionLike;
+
+    // NVIDIA NIM returns 202 + NVCF-REQID when generation outlives the
+    // request window; the body has no `choices` until we poll for the result.
+    if (response.status === 202) {
+      const reqId =
+        response.headers.get("NVCF-REQID") ||
+        (completion?.requestId as string | undefined);
+      if (!reqId) {
+        throw new Error(
+          "NVIDIA accepted the request (202) but returned no request id to poll."
+        );
+      }
+      completion = await pollNvcfResult(reqId);
+    }
+  } catch (e) {
+    throw asFriendlyError(e);
+  }
+
+  const message = completion?.choices?.[0]?.message;
+  if (!message) {
+    // Log the raw body so Vercel logs show WHAT NVIDIA actually sent.
+    console.error(
+      "NVIDIA NIM returned no choices:",
+      JSON.stringify(completion).slice(0, 800)
+    );
+    const detail =
+      (completion as { detail?: string; title?: string })?.detail ||
+      (completion as { error?: { message?: string } })?.error?.message ||
+      "";
+    throw new Error(
+      `The NVIDIA API returned an unexpected response${detail ? `: ${detail}` : ""}. ` +
+        "Check NVIDIA_MODEL and try again."
+    );
+  }
+  return (message.content ?? "")
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .trim();
+}
+
+/** Poll integrate.api.nvidia.com's status endpoint until the job finishes. */
+async function pollNvcfResult(reqId: string): Promise<CompletionLike> {
+  const deadline = Date.now() + 90_000;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 2500));
+    const res = await fetch(`${BASE_URL}/status/${reqId}`, {
+      headers: {
+        Authorization: `Bearer ${process.env.NVIDIA_API_KEY}`,
+        Accept: "application/json",
+      },
+    });
+    if (res.status === 202) continue; // still working
+    if (!res.ok) {
+      throw new Error(
+        `NVIDIA polling failed (${res.status}). Please try again.`
+      );
+    }
+    return (await res.json()) as CompletionLike;
+  }
+  throw new Error("The AI request timed out. Please try again.");
+}
+
+/** Translate SDK/API failures into messages a user can act on. */
+function asFriendlyError(e: unknown): Error {
+  if (e instanceof OpenAI.APIError) {
+    const status = e.status;
+    if (status === 401 || status === 403) {
+      return new Error(
+        "NVIDIA rejected the API key. Check NVIDIA_API_KEY (build.nvidia.com) in your environment variables."
+      );
+    }
+    if (status === 404) {
+      return new Error(
+        `NVIDIA doesn't recognise the model "${MODEL}". Check NVIDIA_MODEL in your environment variables.`
+      );
+    }
+    if (status === 429) {
+      return new Error(
+        "NVIDIA rate limit reached (free tier). Wait a moment and try again."
+      );
+    }
+    return new Error(`NVIDIA API error (${status ?? "network"}): ${e.message}`);
+  }
+  return e instanceof Error ? e : new Error(String(e));
+}
+
 /**
  * Run a single completion that must return JSON, and parse it into T.
  * Nemotron is instructed to disable extended reasoning and emit JSON only.
@@ -72,14 +189,8 @@ export async function chatJSON<T>(
   user: string,
   opts: ChatJSONOptions = {}
 ): Promise<T> {
-  const openai = getClient();
-  const completion = await openai.chat.completions.create({
-    model: MODEL,
-    temperature: opts.temperature ?? 0.4,
-    max_tokens: opts.maxTokens ?? 4000,
-    // Many NIM models honour this; harmless where unsupported.
-    response_format: { type: "json_object" },
-    messages: [
+  const raw = await completeText(
+    [
       {
         role: "system",
         content:
@@ -90,9 +201,9 @@ export async function chatJSON<T>(
       },
       { role: "user", content: user },
     ],
-  });
+    { temperature: opts.temperature ?? 0.4, maxTokens: opts.maxTokens ?? 4000 }
+  );
 
-  const raw = completion.choices[0]?.message?.content ?? "";
   const jsonText = extractJsonBlock(raw);
   try {
     return JSON.parse(jsonText) as T;
@@ -109,17 +220,11 @@ export async function chatText(
   user: string,
   opts: ChatJSONOptions = {}
 ): Promise<string> {
-  const openai = getClient();
-  const completion = await openai.chat.completions.create({
-    model: MODEL,
-    temperature: opts.temperature ?? 0.5,
-    max_tokens: opts.maxTokens ?? 1500,
-    messages: [
+  return completeText(
+    [
       { role: "system", content: "detailed thinking off\n" + system },
       { role: "user", content: user },
     ],
-  });
-  return (completion.choices[0]?.message?.content ?? "")
-    .replace(/<think>[\s\S]*?<\/think>/gi, "")
-    .trim();
+    { temperature: opts.temperature ?? 0.5, maxTokens: opts.maxTokens ?? 1500 }
+  );
 }

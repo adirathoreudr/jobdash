@@ -14,23 +14,27 @@ Built with **Next.js 15**, **Tailwind v4**, **Prisma + Postgres**, and
 
 ```bash
 pnpm install
-cp .env.example .env.local     # then fill in the values (see below)
+cp .env.example .env           # then fill in the values (see below)
 pnpm db:push                   # create the tables in your Postgres
 pnpm dev                       # http://localhost:3000
 ```
+
+> Use **`.env`**, not `.env.local`. Next.js reads both, but the Prisma CLI
+> (`prisma db push`, `prisma studio`) only reads `.env` — keeping everything
+> in one file avoids commands silently seeing different variables.
 
 ## ⭐ Where the NVIDIA Nemotron API key goes
 
 1. Get a free key at **https://build.nvidia.com** → open any Nemotron model →
    **Get API Key**.
-2. Put it in **`.env.local`**:
+2. Put it in **`.env`**:
    ```
    NVIDIA_API_KEY=nvapi-xxxxxxxx
    NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
    NVIDIA_MODEL=nvidia/nemotron-3-super-120b-a12b
    ```
 3. On **Vercel**: Project → Settings → Environment Variables → add the same
-   keys. It is only ever read server-side (`lib/nvidia.ts`); `.env.local` is
+   keys. It is only ever read server-side (`lib/nvidia.ts`); `.env` is
    gitignored.
 
 ## Environment variables
