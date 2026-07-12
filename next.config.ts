@@ -1,5 +1,5 @@
-import type { NextConfig } from "next";
-
+  // @react-pdf/renderer and pdf.js (via unpdf) pull in optional native/canvas
+  // dependencies that must not be bundled for the server runtime.
 const nextConfig: NextConfig = {
   // @react-pdf/renderer and pdf.js (via unpdf) pull in optional native/canvas deps
   // that must not be bundled for the server runtime.
