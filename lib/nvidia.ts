@@ -6,8 +6,46 @@ import OpenAI from "openai";
   ever read here, server-side.
 */
 
-const BASE_URL =
-  process.env.NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1";
+const DEFAULT_BASE_URL = "https://integrate.api.nvidia.com/v1";
+
+/**
+ * Resolve the API base URL, healing the most common misconfiguration:
+ * pasting a build.nvidia.com model-page URL (a website) instead of the API
+ * endpoint. The website returns HTML, which the SDK can't use.
+ */
+function resolveBaseUrl(): string {
+  const raw = (process.env.NVIDIA_BASE_URL || "").trim().replace(/\/+$/, "");
+  if (!raw) return DEFAULT_BASE_URL;
+  try {
+    const u = new URL(raw);
+    // NVIDIA *website* hosts people paste by mistake (model catalog pages).
+    const websiteHosts = [
+      "build.nvidia.com",
+      "www.nvidia.com",
+      "nvidia.com",
+      "catalog.ngc.nvidia.com",
+      "developer.nvidia.com",
+    ];
+    if (websiteHosts.includes(u.hostname)) {
+      console.warn(
+        `NVIDIA_BASE_URL points at ${u.hostname} (a website, not the API); using ${DEFAULT_BASE_URL} instead.`
+      );
+      return DEFAULT_BASE_URL;
+    }
+    // Right API host but missing the /v1 path.
+    if (u.hostname === "integrate.api.nvidia.com" && !u.pathname.startsWith("/v1")) {
+      return `${u.origin}/v1`;
+    }
+    return raw; // custom proxies / self-hosted NIM / localhost stay untouched
+  } catch {
+    console.warn(
+      `NVIDIA_BASE_URL is not a valid URL; using ${DEFAULT_BASE_URL} instead.`
+    );
+    return DEFAULT_BASE_URL;
+  }
+}
+
+const BASE_URL = resolveBaseUrl();
 const MODEL = process.env.NVIDIA_MODEL || "nvidia/nemotron-3-super-120b-a12b";
 
 export function isNvidiaConfigured() {
@@ -111,6 +149,18 @@ async function completeText(
     }
   } catch (e) {
     throw asFriendlyError(e);
+  }
+
+  // A string body (HTML page) means the base URL points at a website,
+  // not the API — e.g. a build.nvidia.com model page.
+  if (typeof (completion as unknown) === "string") {
+    console.error(
+      "NVIDIA returned a non-JSON (webpage) response:",
+      String(completion).slice(0, 300)
+    );
+    throw new Error(
+      "NVIDIA returned a webpage instead of an API response. Set NVIDIA_BASE_URL to https://integrate.api.nvidia.com/v1 (Vercel → Settings → Environment Variables) and redeploy."
+    );
   }
 
   const message = completion?.choices?.[0]?.message;
