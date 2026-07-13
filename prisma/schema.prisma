@@ -5,7 +5,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+/// Single-user app: we always read/write the most recent row.
 }
 
 /// The user's baseline resume — the anchor context for every generation.
@@ -16,7 +16,7 @@ model Profile {
   email      String?
   rawText    String   @db.Text
   structured Json?
-  createdAt  DateTime @default(now())
+/// A logged job application (State 3). `generated` caches the full artifact
   updatedAt  DateTime @updatedAt
 }
 
