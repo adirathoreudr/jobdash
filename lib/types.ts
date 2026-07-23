@@ -1,4 +1,4 @@
-/** Shared domain types used across the app + API boundary. */
+// Shared domain types used across the app + API boundary.
 
 export type ResumeExperience = {
   company: string;
@@ -29,7 +29,7 @@ export type ResumeData = {
   education: ResumeEducation[];
   projects?: { name: string; description: string; tech?: string[] }[];
 };
-/** Extracted job description and context. */
+
 export type Profile = {
   id: string;
   name: string | null;
@@ -44,7 +44,7 @@ export type JobData = {
   title: string;
   company: string;
   location?: string;
-/** Everything the generation engine produces for one job (State 2). */
+  skills: string[];
   responsibilities?: string[];
   qualifications?: string[];
   description: string;
