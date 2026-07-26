@@ -1,3 +1,9 @@
+/**
+ * API route for parsing and structuring uploaded resume PDFs.
+ * Extracts text, structures it via NVIDIA Nemotron, and persists the result.
+ * @module parse-resume
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { extractPdfText } from "@/lib/pdf";
 import { chatJSON, isNvidiaConfigured } from "@/lib/nvidia";
