@@ -1,6 +1,9 @@
 import { SiteHeader } from "@/components/SiteHeader";
 import { HistoryView } from "@/components/HistoryView";
 
+/**
+ * Metadata for the History page.
+ */
 export const metadata = {
   title: "History — JobDash",
 };
