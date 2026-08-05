@@ -1,3 +1,9 @@
+/**
+ * API route for application history.
+ * GET: list applications.
+ * PATCH: update application status.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { listApplications, updateApplicationStatus } from "@/lib/data";
 import { updateApplicationPageStatus } from "@/lib/notion";
@@ -8,6 +14,9 @@ export const dynamic = "force-dynamic";
 
 const STATUSES = ["Applied", "Interview", "Offer", "Rejected"];
 
+/**
+ * GET handler: returns list of applications.
+ */
 export async function GET() {
   if (!hasDatabase) {
     return NextResponse.json({ applications: [], hasDatabase: false });
@@ -20,6 +29,9 @@ export async function GET() {
   }
 }
 
+/**
+ * PATCH handler: updates an application's status.
+ */
 // Update an application's status (drives the pipeline in /history).
 export async function PATCH(req: NextRequest) {
   if (!hasDatabase) {
