@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
 import { createApplication } from "@/lib/data";
 import { createApplicationPage, isNotionConfigured } from "@/lib/notion";
 import { hasDatabase } from "@/lib/prisma";
@@ -6,7 +6,7 @@ import type { Artifacts } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
-
+/** Handles POST requests to create a new job application. */
 export async function POST(req: NextRequest) {
   let body: {
     company?: string;
