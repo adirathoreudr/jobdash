@@ -1,4 +1,4 @@
-"use client";
+"use client"
 
 import { useState } from "react";
 import type { JobData } from "@/lib/types";
@@ -12,7 +12,7 @@ export function JobInput({ onJob }: Props) {
   const [url, setUrl] = useState("");
   const [paste, setPaste] = useState("");
   const [needsPaste, setNeedsPaste] = useState(false);
-  const [reason, setReason] = useState<string | null>(null);
+  const [reason, setReason] = useState<string | null>(null); // Reason for needing paste
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
